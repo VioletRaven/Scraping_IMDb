@@ -14,7 +14,7 @@ e delle informazioni utente per eventuali login a pagine web
 Infine imposta il path al *chromedriver* che può essere assoluto o relativo.
 
 '''
-fifties = []
+fifties = ['Peter pan', 'Alice in wonderland', 'Cinderella']
 sixties = []
 seventies = []
 eighties = []
