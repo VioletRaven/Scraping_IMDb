@@ -4,6 +4,7 @@ import time
 import datetime
 import calendar
 import sqlite3
+import pandas as pd
 
 # Selenium
 '''
@@ -73,10 +74,12 @@ def get_review_page(title, year):
     #load "warning spoilers"
 
     warnings = driver.find_elements_by_class_name("spoiler-warning__control")
+    i = 1
     for warning in warnings:
-        print("click", end=",\n")
+        print("clicking warning n° {}".format(i), end=",\n")
         warning.click()
         time.sleep(1)
+        i += 1
 
     html = driver.page_source
     driver.quit()
@@ -108,34 +111,6 @@ def create_db(path):
     conn.commit()
     conn.close()
 
-
-
-def save_to_db(film_name, film_year, author_name, review_date, score, title_name, review_text, POU):
-
-    conn.execute("""
-    INSERT INTO disney (
-                           film_name,
-                           film_year,
-                           author_name,
-                           review_date,
-                           score,
-                           title_name,
-                           review_text,
-                           POU
-                       )
-                       VALUES ( 
-                           "%s",
-                           "%d",
-                           "%s",
-                           "%s",
-                           "%f",
-                           "%s",
-                           "%s",
-                           "%f"
-                        );
-    """ % (film_name, film_year, author_name, review_date, score, title_name, review_text, POU))
-    conn.commit()
-
 def beauty_parser(html_page, film_, year_):
 
     # loop to parse through reviews and populate dataset
@@ -147,33 +122,33 @@ def beauty_parser(html_page, film_, year_):
     for review in reviews:
         # get rating
         rating = review.find("span", {"class": "rating-other-user-rating"})
-        rating = None if rating is None else int(rating.text.strip().split("/")[0])
+        rating = 0 if rating is None else int(rating.text.strip().split("/")[0])
 
         # get title
         title = review.find("a", {"class": "title"})
-        title = None if title is None else title.text.strip()
+        title = 'NA' if title is None else title.text.strip()
 
         # get review
 
         review_data = review.find('div', {'class': 'text show-more__control'})
-        review_data = None if review_data is None else review_data.text
+        review_data = 'NA' if review_data is None else review_data.text
 
         # get author
         author = review.find('span', {'class': 'display-name-link'})
-        author = None if author is None else author.text
+        author = 'NA' if author is None else author.text
 
         # get date
         date = review.find('span', {'class': 'review-date'})
-        date = None if date is None else date.text
+        date = 'NA' if date is None else date.text
         date = month_changer(date)
 
         # users the found it useful
         positive_users = review.find('div', {'class': 'actions text-muted'})
-        positive_users = None if positive_users is None else int(positive_users.text.split(' ')[20])
+        positive_users = 0 if positive_users is None else int(positive_users.text.split(' ')[20])
 
         # all users that looked into this review
         all_users = review.find('div', {'class': 'actions text-muted'})
-        all_users = None if all_users is None else int(all_users.text.split(' ')[23])
+        all_users = 0 if all_users is None else int(all_users.text.split(' ')[23])
 
         # get percentage of usefulness with respect to all_users
         try:
@@ -181,13 +156,13 @@ def beauty_parser(html_page, film_, year_):
         except ZeroDivisionError:  # to avoid crash --> 0 if no users have checked the review
             percentage_of_usefulness = 0
 
+        row_df = [film_, year_, author, date, rating, title, review_data, percentage_of_usefulness]
 
+        # print(author,'\n', date,'\n', rating,'\n', title,'\n', review_data,'\n', percentage_of_usefulness,'\n')
 
-        print(film_, year_, author, date, rating, title, review_data, percentage_of_usefulness)
-        save_to_db(film_name = film_, film_year = year_,
-                    author_name = author, review_date= date,
-                    score = rating, title_name = title,
-                    review_text = review_data, POU = percentage_of_usefulness)
+        imdb_df = pd.concat([pd.DataFrame([row_df], columns=imdb_df.columns), imdb_df], ignore_index=True)
+
+    imdb_df.to_sql('disney', conn, if_exists='append', index=False)
 
 
 path = r'C:\Users\Mario\Desktop\Tor Vergata Data Science\Data Warehousing\disney_exam\disney3.db'
@@ -199,6 +174,9 @@ conn = sqlite3.connect(path)
 html = get_review_page('peter pan', 1953)
 beauty_parser(html_page = html, film_ = 'peter pan', year_ = 1953)
 conn.close()
+
+
+
 
 
 
