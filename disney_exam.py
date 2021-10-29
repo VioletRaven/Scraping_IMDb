@@ -13,19 +13,18 @@ e delle informazioni utente per eventuali login a pagine web
 Infine imposta il path al *chromedriver* che può essere assoluto o relativo.
 '''
 
-
 #some films need to be specified in Italian --> maybe because the webdriver has italian settings
 
 films = {'fifties_films' : ['Peter pan', 'Alice nel paese delle meraviglie', 'Cenerentola'], 'fifties_years':[1953, 1951,1950]
-         , 'sixties_films' : ['The Sword in the Stone', 'The Jungle Book', 'Mary Poppins'], 'sixties_years':[1963, 1967, 1964]
-         , 'seventies_films' : ['The Aristocats', 'Robin Hood', 'The Many Adventures of Winnie the Pooh'], 'seventies_years':[1970, 1973, 1977]
+         , 'sixties_films' : ['La Spada nella Roccia', 'The Jungle Book', 'Mary Poppins'], 'sixties_years':[1963, 1967, 1964]
+         , 'seventies_films' : ['The Aristocats', 'The Rescuers', 'The Many Adventures of Winnie the Pooh'], 'seventies_years':[1970, 1977, 1977]
          , 'eighties_films' : ['The Little Mermaid', 'Tron', 'Oliver & Company'], 'eighties_years':[1989, 1982, 1988]
          , 'nineties_films' : ['Aladdin', 'The Lion King', 'Hercules'], 'nineties_years':[1992, 1994, 1997]
-         , 'twothousand_films' : ["The Emperor's New Groove", 'Monsters, Inc.', 'Lilo & Stitch'], 'twothousand_years':[2000, 2001, 2002]
+         , 'twothousand_films' : ["The Emperor's New Groove", 'Spirited Away', 'Lilo & Stitch'], 'twothousand_years':[2000, 2001, 2002]
          , 'twothousandten_films' : ['Tangled', 'Brave', 'Frozen'], 'twothousandten_years':[2010, 2012, 2013]}
 
-#films.get('fifties_films')[0] # get film
-#films.get('fifties_years')[0] # get year
+
+films_not_showing_up = ['robin hood', 'monsters inc.']
 
 # get film names and years from vocabulary
 film_names = [films.get(i) for i in films if i.split('_')[1] == 'films']
@@ -56,17 +55,62 @@ def get_review_page(title, year):
     button = driver.find_element_by_id("suggestion-search-button")
     button.click()
 
-    #avoid homonymous element by specifying year
-    diff_movies = driver.find_elements_by_class_name('result_text')
-    movie = 0
-    for n, i in enumerate(diff_movies):
-        if str(year) in i.text:
-            movie += n
-    button = diff_movies[movie]
-    
-    #get href button by xpath and enter movie page
-    button = button.find_element_by_xpath('//*[@id="main"]/div/div[2]/table/tbody/tr[3]/td[2]/a')
+    # get all films in first table
+    table_films = driver.find_elements_by_xpath("//table")[0].text.split('\n')
+    # filter out strings with the word 'aka' in it
+    table_films = [x for x in table_films if 'aka' not in x]
+    #get movie index
+    movie_index = [table_films.index(i) for i in table_films if str(year) in i]
+
+    # if only one element in table
+    if len(table_films) == 1:
+        xpath = '//*[@id="main"]/div/div[2]/table/tbody/{}/td[2]/a'.format('tr')
+    else:  # get index + 1 because starting from 0
+        xpath = '//*[@id="main"]/div/div[2]/table/tbody/{}/td[2]/a'.format('tr' + '[{}]'.format(movie_index[0] + 1))
+
+    #'//*[@id="main"]/div/div[2]/table/tbody/tr[2]/td[2]/a' == xpath
+
+    button = driver.find_element_by_xpath(xpath)
     button.click()
+
+    # #avoid homonymous element by specifying year
+    # diff_movies = driver.find_elements_by_class_name('result_text')
+    # movie = 0
+    # num_movies = 0
+    # for n, i in enumerate(diff_movies):
+    #     if str(year) in i.text:
+    #         movie += n
+    #     num_movies += n
+    # button = diff_movies[movie]
+    #
+    # print('MOVIE NUMBER {} IN LIST'.format(movie))
+    # print('NUMBER OF MOVIES = {}'.format(num_movies))
+    #
+    # # we need to pass the RELATIVE XPAT not the absolute and here we are passing tr[3] which is always the THIRD title in the list
+    #
+    # # if title.lower() == 'la spada nella roccia':
+    # #     #why is the xpath different for certain titles. Here it's tr instead of tr[3]
+    # #     button = button.find_element_by_xpath('// *[ @ id = "main"] / div / div[2] / table / tbody / tr / td[2] / a')
+    # # else:
+    # #     #get href button by xpath and enter movie page
+    # #     button = button.find_element_by_xpath('//*[@id="main"]/div/div[2]/table/tbody/tr[3]/td[2]/a')
+    #
+    # # if there is only one movie then the tr == tr
+    # '//*[@id="main"]/div/div[2]/table/tbody/tr[1]/td[2]/a'
+    #
+    # # if there are more than one movie and the movie is the first in our list then tr == tr[1]
+    # '//*[@id="main"]/div/div[2]/table/tbody/tr/td[2]/a'
+    #
+    #
+    #
+    # if movie == 0:
+    #     xpath = '//*[@id="main"]/div/div[2]/table/tbody/{}/td[2]/a'.format('tr')
+    # else:
+    #     xpath = '//*[@id="main"]/div/div[2]/table/tbody/{}/td[2]/a'.format('tr'+ '[{}]'.format(movie))
+    #
+    # button = button.find_element_by_xpath(xpath)
+    #
+    # button.click()
 
     #find reviews
     new_button = driver.find_element_by_xpath('//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[3]/div[2]/div[2]/ul/li[1]/a')
@@ -183,7 +227,7 @@ conn = sqlite3.connect(path)
 #create database if it does not exist already ONLY NEEDS TO BE RUN ONCE
 create_db(path = path, conn = conn)
 
-for film, year in zip(film_names , film_years):
+for film, year in zip(film_names, film_years):
     start = time.time()
     # get hml with fully loaded pages and opened warnings sections
     html = get_review_page(film, year)
@@ -193,16 +237,3 @@ for film, year in zip(film_names , film_years):
     print('It took {} seconds to retrieve all reviews from the film: {} {}'.format(elapsed_time, film, year))
 
 conn.close()
-
-
-
-
-
-
-start = time.time()
-# get hml with fully loaded pages and opened warnings sections
-html = get_review_page('The Sword in the Stone', 1963)
-# parse info, save it to db, close conn
-beauty_parser(html_page=html, film_='The Sword in the Stone', year_=1950, conn=conn)
-elapsed_time = time.time() - start
-print('It took {} seconds to retrieve all reviews from the film: {} {}'.format(elapsed_time, 'The Sword in the Stone', 1950))
